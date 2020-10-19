@@ -39,7 +39,6 @@ spec.loader.exec_module(mod)  # type: ignore
 version = mod.version  # type: ignore
 
 PY3 = sys.version_info[0] == 3
-PY38 = PY3 and sys.version_info[1] >= 8
 
 my_dir = dirname(__file__)
 
@@ -328,7 +327,7 @@ mongo = [
     'pymongo>=3.6.0',
 ]
 mssql = [
-    'pymssql~=2.1.1',
+    'pymssql~=2.1,>=2.1.5',
 ]
 mysql = [
     'mysql-connector-python>=8.0.11, <=8.0.18',
@@ -649,11 +648,6 @@ if PY3:
         'snakebite',
     ])
 
-if PY38:
-    PACKAGES_EXCLUDED_FOR_ALL.extend([
-        'pymssql',
-    ])
-
 # Those packages are excluded because they break tests (downgrading mock) and they are
 # not needed to run our test suite.
 PACKAGES_EXCLUDED_FOR_CI = [
@@ -743,12 +737,16 @@ INSTALL_REQUIREMENTS = [
     'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
-    'werkzeug<1.0.0',
+    'werkzeug<1.1.0',
 ]
 
 
 def do_setup():
     """Perform the Airflow package setup."""
+    install_providers_from_sources = os.getenv('INSTALL_PROVIDERS_FROM_SOURCES')
+    exclude_patterns = \
+        [] if install_providers_from_sources and install_providers_from_sources == 'true' \
+        else ['airflow.providers', 'airflow.providers.*']
     write_version()
     setup(
         name='apache-airflow',
@@ -759,7 +757,7 @@ def do_setup():
         version=version,
         packages=find_packages(
             include=['airflow*'],
-            exclude=['airflow.providers', 'airflow.providers.*']),
+            exclude=exclude_patterns),
         package_data={
             'airflow': ['py.typed'],
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",

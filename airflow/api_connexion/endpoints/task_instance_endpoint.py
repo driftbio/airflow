@@ -37,15 +37,16 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import clear_task_instances, TaskInstance as TI
 from airflow.models import SlaMiss
+from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.utils.session import provide_session
 
 
 @security.requires_access(
     [
-        ("can_read", "Dag"),
-        ("can_read", "DagRun"),
-        ("can_read", "Task"),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
     ]
 )
 @provide_session
@@ -101,9 +102,9 @@ def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
 )
 @security.requires_access(
     [
-        ("can_read", "Dag"),
-        ("can_read", "DagRun"),
-        ("can_read", "Task"),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
     ]
 )
 @provide_session
@@ -169,7 +170,13 @@ def get_task_instances(
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_read", "Task")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK),
+    ]
+)
 @provide_session
 def get_task_instances_batch(session=None):
     """
@@ -223,7 +230,13 @@ def get_task_instances_batch(session=None):
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
+    ]
+)
 @provide_session
 def post_clear_task_instances(dag_id: str, session=None):
     """
@@ -263,7 +276,13 @@ def post_clear_task_instances(dag_id: str, session=None):
     )
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun"), ("can_edit", "Task")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK),
+    ]
+)
 @provide_session
 def post_set_task_instances_state(dag_id, session):
     """Set a state of task instances."""

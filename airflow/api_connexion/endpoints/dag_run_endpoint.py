@@ -28,11 +28,17 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
 )
 from airflow.models import DagModel, DagRun
+from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
 
-@security.requires_access([("can_read", "Dag"), ("can_delete", "DagRun")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+    ]
+)
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """
@@ -43,7 +49,12 @@ def delete_dag_run(dag_id, dag_run_id, session):
     return NoContent, 204
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+    ]
+)
 @provide_session
 def get_dag_run(dag_id, dag_run_id, session):
     """
@@ -58,7 +69,12 @@ def get_dag_run(dag_id, dag_run_id, session):
     return dagrun_schema.dump(dag_run)
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+    ]
+)
 @format_parameters(
     {
         'start_date_gte': format_datetime,
@@ -157,7 +173,12 @@ def _apply_date_filters_to_query(
     return query
 
 
-@security.requires_access([("can_read", "Dag"), ("can_read", "DagRun")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+    ]
+)
 @provide_session
 def get_dag_runs_batch(session):
     """
@@ -193,7 +214,12 @@ def get_dag_runs_batch(session):
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
-@security.requires_access([("can_read", "Dag"), ("can_create", "DagRun")])
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAGS),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+    ]
+)
 @provide_session
 def post_dag_run(dag_id, session):
     """
@@ -207,7 +233,7 @@ def post_dag_run(dag_id, session):
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == post_body["run_id"]).first()
     )
     if not dagrun_instance:
-        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL.value, **post_body)
+        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
         session.add(dag_run)
         session.commit()
         return dagrun_schema.dump(dag_run)

@@ -28,7 +28,6 @@ from zipfile import ZipFile
 import mock
 import psutil
 import pytest
-import six
 from mock import MagicMock, patch
 from parameterized import parameterized
 from sqlalchemy import func
@@ -1648,7 +1647,7 @@ class TestSchedulerJob(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
-        six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
+        self.assertCountEqual([State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
     def test_execute_task_instances_limit(self):
@@ -1952,7 +1951,7 @@ class TestSchedulerJob(unittest.TestCase):
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, expected_task_state)
         self.assertIsNotNone(ti.start_date)
-        if expected_task_state in State.finished():
+        if expected_task_state in State.finished:
             self.assertIsNotNone(ti.end_date)
             self.assertEqual(ti.start_date, ti.end_date)
             self.assertIsNotNone(ti.duration)
@@ -3487,6 +3486,33 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler_job.processor_agent.send_sla_callback_request_to_execute.assert_called_once_with(
                 full_filepath=dag.fileloc, dag_id=dag_id
             )
+
+    def test_scheduler_sets_job_id_on_dag_run(self):
+        dag = DAG(
+            dag_id='test_scheduler_sets_job_id_on_dag_run',
+            start_date=DEFAULT_DATE)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+        )
+
+        dagbag = DagBag(
+            dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"),
+            include_examples=False,
+            read_dags_from_db=True
+        )
+        dagbag.bag_dag(dag=dag, root_dag=dag)
+        dagbag.sync_to_db()
+        dag_model = DagModel.get_dagmodel(dag.dag_id)
+
+        scheduler = SchedulerJob(executor=self.null_exec)
+        scheduler.processor_agent = mock.MagicMock()
+
+        with create_session() as session:
+            scheduler._create_dag_runs([dag_model], session)
+
+        assert dag.get_last_dagrun().creating_job_id == scheduler.id
 
 
 @pytest.mark.xfail(reason="Work out where this goes")

@@ -43,6 +43,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ github.run_id }}"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
+  INSTALL_PROVIDERS_FROM_SOURCES: "true"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -280,6 +281,7 @@ jobs:
       INSTALL_AIRFLOW_VERSION: "1.10.12"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
       BACKPORT_PACKAGES: "true"
+      VERSION_SUFFIX_FOR_SVN: "rc1"
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -315,6 +317,8 @@ jobs:
     env:
       INSTALL_AIRFLOW_VERSION: "2.0.0-dev"   # Note that this causes local installation
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
+      VERSION_SUFFIX_FOR_PYPI: "a0"
+      VERSION_SUFFIX_FOR_SVN: "a0"
     if: github.repository == 'apache/airflow' || github.event_name != 'schedule'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -378,15 +382,21 @@ jobs:
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
-          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+          name: airflow-logs-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
           name: >
-            coverage-postgres-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.postgres-version}}
+            coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/coverage.xml"
 
   tests-mysql:
@@ -399,12 +409,6 @@ jobs:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
         mysql-version: ${{ fromJson(needs.build-info.outputs.mysqlVersions) }}
         exclude: ${{ fromJson(needs.build-info.outputs.mysqlExclude) }}
-        # Additionally include all mysql-only tests but only for default versions
-        # in case the regular tests are excluded in the future
-        include:
-          - python_version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-            postgres-version: ${{ needs.build-info.outputs.defaultMySQLVersion }}
-            test-type: "MySQL"
       fail-fast: false
     env:
       BACKEND: mysql
@@ -430,14 +434,20 @@ jobs:
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
-          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          name: airflow-logs-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-mysql-${{matrix.test-type}}-${{matrix.python-version}}-${{matrix.mysql-version}}
+          name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/coverage.xml"
 
   tests-sqlite:
@@ -448,7 +458,6 @@ jobs:
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
-        test-type: ${{ fromJson(needs.build-info.outputs.testTypes) }}
         exclude: ${{ fromJson(needs.build-info.outputs.sqliteExclude) }}
       fail-fast: false
     env:
@@ -474,14 +483,20 @@ jobs:
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
-          name: airflow-logs-${{matrix.test-type}}-${{matrix.python-version}}
+          name: airflow-logs-${{matrix.python-version}}
           path: './files/airflow_logs*'
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-sqlite-${{matrix.python-version}}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-sqlite-${{matrix.test-type}}-${{matrix.python-version}}
+          name: coverage-sqlite-${{matrix.python-version}}
           path: ./files/coverage.xml
 
   tests-quarantined:
@@ -541,14 +556,20 @@ jobs:
           path: "files/test_result.xml"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
-        if: always()
+        if: failure()
         with:
-          name: airflow-logs-quarantined-${{matrix.python-version}}-${{ matrix.postgres-version }}
+          name: airflow-logs-quarantined-${{ matrix.backend }}
           path: "./files/airflow_logs*"
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-quarantined-${{ matrix.backend }}
+          path: "./files/container_logs*"
       - name: "Upload artifact for coverage"
         uses: actions/upload-artifact@v2
         with:
-          name: coverage-quarantined-${{matrix.test-type}}-${{matrix.python-version}}
+          name: coverage-quarantined-${{ matrix.backend }}
           path: "./files/coverage.xml"
 
   upload-coverage:
@@ -616,7 +637,6 @@ jobs:
       fail-fast: false
     env:
       BACKEND: postgres
-      TEST_TYPE: ${{ matrix.test-type }}
       RUN_TESTS: "true"
       RUNTIME: "kubernetes"
       ENABLE_KIND_CLUSTER: "true"
@@ -646,10 +666,14 @@ jobs:
       - name: "Prepare PROD Image"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
       - name: "Deploy airflow to cluster"
+        id: deploy-app
         run: ./scripts/ci/kubernetes/ci_deploy_app_to_kubernetes.sh
         env:
           # We have the right image pulled already by the previous step
           SKIP_BUILDING_PROD_IMAGE: "true"
+          # due to some instabilities, in CI we try to increase port numbers when trying to establish
+          # port forwarding
+          INCREASE_PORT_NUMBER_FOR_KUBERNETES: "true"
       - name: "Cache virtualenv for kubernetes testing"
         uses: actions/cache@v2
         env:
@@ -657,6 +681,16 @@ jobs:
         with:
           path: .build/.kubernetes_venv
           key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}"
+      - name: "Cache bin folder with tools for kubernetes testing"
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-kubernetes-tests-bin-v6
+        with:
+          path: .build/bin
+          key: "${{ env.cache-name }}-${{ github.job }}-${{ hashFiles('setup.py') }}\
+-${{ needs.build-info.outputs.defaultKindVersion }}\
+-${{ needs.build-info.outputs.defaultHelmVersion }}\
+-$${{ matrix.kubernetes-version }}"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_run_kubernetes_tests.sh
       - name: "Upload KinD logs"

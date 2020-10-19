@@ -870,7 +870,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             }
 
             # Only add end_date and duration if the new_state is 'success', 'failed' or 'skipped'
-            if new_state in State.finished():
+            if new_state in State.finished:
                 ti_prop_update.update({
                     models.TaskInstance.end_date: current_time,
                     models.TaskInstance.duration: 0,
@@ -955,7 +955,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .query(TI)
             .outerjoin(TI.dag_run)
             .filter(or_(DR.run_id.is_(None),
-                        DR.run_type != DagRunType.BACKFILL_JOB.value))
+                        DR.run_type != DagRunType.BACKFILL_JOB))
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
@@ -1484,7 +1484,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 func.count(TI.execution_date.distinct()),
             ).filter(
                 TI.dag_id.in_(list({dag_run.dag_id for dag_run in dag_runs})),
-                TI.state.notin_(State.finished())
+                TI.state.notin_(list(State.finished))
             ).group_by(TI.dag_id).all())
 
             for dag_run in dag_runs:
@@ -1563,7 +1563,8 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 state=State.RUNNING,
                 external_trigger=False,
                 session=session,
-                dag_hash=dag_hash
+                dag_hash=dag_hash,
+                creating_job_id=self.id,
             )
 
         self._update_dag_next_dagruns(dag_models, session)
@@ -1789,7 +1790,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
             .outerjoin(TI.queued_by_job)
             .filter(or_(TI.queued_by_job_id.is_(None), SchedulerJob.state != State.RUNNING))
             .join(TI.dag_run)
-            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB.value,
+            .filter(DagRun.run_type != DagRunType.BACKFILL_JOB,
                     # pylint: disable=comparison-with-callable
                     DagRun.state == State.RUNNING)
             .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))

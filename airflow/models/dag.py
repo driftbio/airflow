@@ -51,6 +51,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
+from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -176,7 +177,7 @@ class DAG(BaseDag, LoggingMixin):
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
     :param access_control: Specify optional DAG-level permissions, e.g.,
-        "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
+        "{'role1': {'can_read'}, 'role2': {'can_read', 'can_edit'}}"
     :type access_control: dict
     :param is_paused_upon_creation: Specifies if the dag is paused when created for the first time.
         If the dag exists already, this flag will be ignored. If this optional parameter
@@ -332,7 +333,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.doc_md = doc_md
 
-        self._access_control = access_control
+        self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
@@ -381,6 +382,32 @@ class DAG(BaseDag, LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
+
+    @staticmethod
+    def _upgrade_outdated_dag_access_control(access_control=None):
+        """
+        Looks for outdated dag level permissions (can_dag_read and can_dag_edit) in DAG
+        access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
+        and replaces them with updated permissions (can_read and can_edit).
+        """
+        if not access_control:
+            return None
+        new_perm_mapping = {
+            permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
+            permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
+        }
+        updated_access_control = {}
+        for role, perms in access_control.items():
+            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
+
+        if access_control != updated_access_control:
+            warnings.warn(
+                "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
+                "Please use 'can_read' and 'can_edit', respectively.",
+                DeprecationWarning, stacklevel=3
+            )
+
+        return updated_access_control
 
     def date_range(
         self,
@@ -651,7 +678,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @access_control.setter
     def access_control(self, value):
-        self._access_control = value
+        self._access_control = DAG._upgrade_outdated_dag_access_control(value)
 
     @property
     def description(self) -> Optional[str]:
@@ -1347,8 +1374,18 @@ class DAG(BaseDag, LoggingMixin):
             result._log = self._log
         return result
 
-    def sub_dag(self, task_regex, include_downstream=False,
-                include_upstream=True):
+    def sub_dag(self, *args, **kwargs):
+        """This method is deprecated in favor of partial_subset"""
+        warnings.warn(
+            "This method is deprecated and will be removed in a future version. Please use partial_subset",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.partial_subset(*args, **kwargs)
+
+    def partial_subset(
+        self, task_regex, include_downstream=False, include_upstream=True
+    ):
         """
         Returns a subset of the current dag as a deep copy of the current dag
         based on a regex that should match one or many tasks, and includes
@@ -1618,7 +1655,8 @@ class DAG(BaseDag, LoggingMixin):
         conf=None,
         run_type=None,
         session=None,
-        dag_hash=None
+        dag_hash=None,
+        creating_job_id=None,
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
@@ -1638,6 +1676,8 @@ class DAG(BaseDag, LoggingMixin):
         :type external_trigger: bool
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :type conf: dict
+        :param creating_job_id: id of the job creating this DagRun
+        :type creating_job_id: int
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         :param dag_hash: Hash of Serialized DAG
@@ -1664,8 +1704,9 @@ class DAG(BaseDag, LoggingMixin):
             external_trigger=external_trigger,
             conf=conf,
             state=state,
-            run_type=run_type.value,
-            dag_hash=dag_hash
+            run_type=run_type,
+            dag_hash=dag_hash,
+            creating_job_id=creating_job_id
         )
         session.add(run)
         session.flush()
@@ -1732,8 +1773,8 @@ class DAG(BaseDag, LoggingMixin):
         most_recent_dag_runs = dict(session.query(DagRun.dag_id, func.max_(DagRun.execution_date)).filter(
             DagRun.dag_id.in_(existing_dag_ids),
             or_(
-                DagRun.run_type == DagRunType.BACKFILL_JOB.value,
-                DagRun.run_type == DagRunType.SCHEDULED.value,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+                DagRun.run_type == DagRunType.SCHEDULED,
                 DagRun.external_trigger.is_(True),
             ),
         ).group_by(DagRun.dag_id).all())
