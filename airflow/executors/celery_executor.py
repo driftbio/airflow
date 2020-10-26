@@ -72,8 +72,7 @@ else:
 
 app = Celery(
     conf.get('celery', 'CELERY_APP_NAME'),
-    config_source=celery_configuration
-)
+    config_source=celery_configuration)
 
 
 @app.task
@@ -252,7 +251,7 @@ class CeleryExecutor(BaseExecutor):
 
                 # Store the Celery task_id in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
-                # which point we dont need the ID anymore anyway
+                # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (State.QUEUED, result.task_id)
 
                 # If the task runs _really quickly_ we may already have a result!
@@ -479,9 +478,7 @@ class BulkStateFetcher(LoggingMixin):
         self._sync_parallelism = sync_parralelism
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
-        """
-        Gets status for many Celery tasks using the best method available.
-        """
+        """Gets status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
             return result

@@ -84,16 +84,12 @@ class State:
 
     @classmethod
     def color(cls, state):
-        """
-        Returns color for a state.
-        """
+        """Returns color for a state."""
         return cls.state_color.get(state, 'white')
 
     @classmethod
     def color_fg(cls, state):
-        """
-        Black&white colors for a state.
-        """
+        """Black&white colors for a state."""
         color = cls.color(state)
         if color in ['green', 'red']:
             return 'white'
@@ -111,11 +107,15 @@ class State:
         SUCCESS,
         FAILED,
         SKIPPED,
+        UPSTREAM_FAILED,
     ])
     """
-    A list of states indicating that a task started and completed a
-    run attempt. Note that the attempt could have resulted in failure or
-    have been interrupted; in any case, it is no longer running.
+    A list of states indicating a task has reached a terminal state (i.e. it has "finished") and needs no
+    further action.
+
+    Note that the attempt could have resulted in failure or have been
+    interrupted; or perhaps never run at all (skip, or upstream_failed) in any
+    case, it is no longer running.
     """
 
     unfinished = frozenset([
@@ -135,9 +135,7 @@ class State:
 
 
 class PokeState:
-    """
-    Static class with poke states constants used in smart operator.
-    """
+    """Static class with poke states constants used in smart operator."""
 
     LANDED = 'landed'
     NOT_LANDED = 'not_landed'

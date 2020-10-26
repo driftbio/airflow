@@ -642,7 +642,6 @@ class TestDagBag(unittest.TestCase):
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
-    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     def test_serialized_dags_are_written_to_db_on_sync(self):
         """
         Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
@@ -662,7 +661,6 @@ class TestDagBag(unittest.TestCase):
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             self.assertEqual(new_serialized_dags_count, 1)
 
-    @patch("airflow.models.dagbag.settings.STORE_SERIALIZED_DAGS", True)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_with_dag_serialization(self):
@@ -685,7 +683,7 @@ class TestDagBag(unittest.TestCase):
         # from DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 4)):
             with assert_queries_count(0):
-                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example"])
+                self.assertEqual(dag_bag.get_dag("example_bash_operator").tags, ["example", "example2"])
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with freeze_time(tz.datetime(2020, 1, 5, 0, 0, 6)):
@@ -699,7 +697,7 @@ class TestDagBag(unittest.TestCase):
                 updated_ser_dag_1 = dag_bag.get_dag("example_bash_operator")
                 updated_ser_dag_1_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
 
-        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "new_tag"])
+        self.assertCountEqual(updated_ser_dag_1.tags, ["example", "example2", "new_tag"])
         self.assertGreater(updated_ser_dag_1_update_time, ser_dag_1_update_time)
 
     def test_collect_dags_from_db(self):

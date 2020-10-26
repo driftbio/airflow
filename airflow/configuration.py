@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -68,9 +67,7 @@ def expand_env_var(env_var):
 
 
 def run_command(command):
-    """
-    Runs command and returns stdout
-    """
+    """Runs command and returns stdout"""
     process = subprocess.Popen(
         shlex.split(command),
         stdout=subprocess.PIPE,

@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""
-This module contains Google Dataproc operators.
-"""
+"""This module contains Google Dataproc operators."""
 # pylint: disable=C0302
 
 import inspect
@@ -660,7 +658,7 @@ class DataprocScaleClusterOperator(BaseOperator):
     :type num_workers: int
     :param num_preemptible_workers: The new number of preemptible workers
     :type num_preemptible_workers: int
-    :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
+    :param graceful_decommission_timeout: Timeout for graceful YARN decommissioning.
         Maximum value is 1d
     :type graceful_decommission_timeout: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -750,9 +748,7 @@ class DataprocScaleClusterOperator(BaseOperator):
         return {'seconds': timeout}
 
     def execute(self, context) -> None:
-        """
-        Scale, up or down, a cluster on Google Cloud Dataproc.
-        """
+        """Scale, up or down, a cluster on Google Cloud Dataproc."""
         self.log.info("Scaling cluster: %s", self.cluster_name)
 
         scaling_cluster_data = self._build_scale_cluster_data()
@@ -960,9 +956,7 @@ class DataprocJobBaseOperator(BaseOperator):
         self.asynchronous = asynchronous
 
     def create_job_template(self):
-        """
-        Initialize `self.job_template` with default values
-        """
+        """Initialize `self.job_template` with default values"""
         self.job_template = DataProcJobBuilder(
             project_id=self.project_id,
             task_id=self.task_id,
@@ -1464,9 +1458,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         return "{}_{}_{}".format(date, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
     def _upload_file_temp(self, bucket, local_file):
-        """
-        Upload a local file to a Google Cloud Storage bucket.
-        """
+        """Upload a local file to a Google Cloud Storage bucket."""
         temp_filename = self._generate_temp_filename(local_file)
         if not bucket:
             raise AirflowException(
@@ -1878,7 +1870,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
         new value. If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1beta2.types.FieldMask`
     :type update_mask: Union[Dict, google.cloud.dataproc_v1beta2.types.FieldMask]
-    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decomissioning. Graceful
+    :param graceful_decommission_timeout: Optional. Timeout for graceful YARN decommissioning. Graceful
         decommissioning allows removing nodes from the cluster without interrupting jobs in progress. Timeout
         specifies how long to wait for jobs in progress to finish before forcefully removing nodes (and
         potentially interrupting jobs). Default timeout is 0 (for forceful decommission), and the maximum

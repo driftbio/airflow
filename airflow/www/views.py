@@ -242,9 +242,7 @@ def dag_edges(dag):
     task_group_map = dag.task_group.get_task_group_dict()
 
     def collect_edges(task_group):
-        """
-        Update edges_to_add and edges_to_skip according to TaskGroups.
-        """
+        """Update edges_to_add and edges_to_skip according to TaskGroups."""
         if isinstance(task_group, BaseOperator):
             return
 
@@ -361,9 +359,7 @@ class AirflowBaseView(BaseView):  # noqa: D101
 
 
 class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-methods
-    """
-    Main Airflow application.
-    """
+    """Main Airflow application."""
 
     @expose('/health')
     def health(self):
@@ -417,13 +413,15 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
 
         if request.args.get('reset_tags') is not None:
             flask_session[FILTER_TAGS_COOKIE] = None
-            arg_tags_filter = None
-        else:
-            cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
-            if arg_tags_filter:
-                flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
-            elif cookie_val:
-                arg_tags_filter = cookie_val.split(',')
+            # Remove the reset_tags=reset from the URL
+            return redirect(url_for('Airflow.index'))
+
+        cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        if arg_tags_filter:
+            flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
+        elif cookie_val:
+            # If tags exist in cookie, but not URL, add them to the URL
+            return redirect(url_for('Airflow.index', tags=cookie_val.split(',')))
 
         if arg_status_filter is None:
             cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
@@ -536,7 +534,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             status_filter=arg_status_filter,
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
-            status_count_paused=status_count_paused)
+            status_count_paused=status_count_paused,
+            tags_filter=arg_tags_filter)
 
     @expose('/dag_stats', methods=['POST'])
     @has_access
@@ -723,7 +722,9 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return wwwutils.json_response({})
 
         query = session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('last_run')
+            DagRun.dag_id,
+            sqla.func.max(DagRun.execution_date).label('execution_date'),
+            sqla.func.max(DagRun.start_date).label('start_date'),
         ).group_by(DagRun.dag_id)
 
         # Filter to only ask for accessible and selected dags
@@ -732,7 +733,8 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 'dag_id': r.dag_id,
-                'last_run': r.last_run.isoformat(),
+                'execution_date': r.execution_date.isoformat(),
+                'start_date': r.start_date.isoformat(),
             } for r in query
         }
         return wwwutils.json_response(resp)
@@ -1241,13 +1243,24 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Triggers DAG Run."""
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
+        request_conf = request.values.get('conf')
 
         if request.method == 'GET':
+            # Populate conf textarea with conf requests parameter, or dag.params
+            default_conf = ''
+            if request_conf:
+                default_conf = request_conf
+            else:
+                try:
+                    dag = current_app.dag_bag.get_dag(dag_id)
+                    default_conf = json.dumps(dag.params, indent=4)
+                except TypeError:
+                    flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
             return self.render_template(
                 'airflow/trigger.html',
                 dag_id=dag_id,
                 origin=origin,
-                conf=''
+                conf=default_conf
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
@@ -1263,7 +1276,6 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
             return redirect(origin)
 
         run_conf = {}
-        request_conf = request.values.get('conf')
         if request_conf:
             try:
                 run_conf = json.loads(request_conf)
@@ -1855,7 +1867,12 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
         """Get Dag as duration graph."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
+
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+        except airflow.exceptions.SerializedDagNotFound:
+            dag = None
+
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
@@ -2147,10 +2164,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
     @action_logging
     def refresh_all(self):
         """Refresh everything"""
-        if settings.STORE_SERIALIZED_DAGS:
-            current_app.dag_bag.collect_dags_from_db()
-        else:
-            current_app.dag_bag.collect_dags(only_if_updated=False)
+        current_app.dag_bag.collect_dags_from_db()
 
         # sync permissions for all dags
         for dag_id, dag in current_app.dag_bag.dags.items():
@@ -3145,9 +3159,7 @@ class DagModelView(AirflowModelView):
     base_filters = [['dag_id', DagFilter, lambda: []]]
 
     def get_query(self):
-        """
-        Default filters for model
-        """
+        """Default filters for model"""
         return (
             super().get_query()  # noqa pylint: disable=no-member
             .filter(or_(models.DagModel.is_active,
@@ -3156,9 +3168,7 @@ class DagModelView(AirflowModelView):
         )
 
     def get_count_query(self):
-        """
-        Default filters for model
-        """
+        """Default filters for model"""
         return (
             super().get_count_query()  # noqa pylint: disable=no-member
             .filter(models.DagModel.is_active)

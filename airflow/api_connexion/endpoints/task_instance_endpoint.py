@@ -34,6 +34,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     set_task_instance_state_form,
 )
+from airflow.exceptions import SerializedDagNotFound
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import clear_task_instances, TaskInstance as TI
 from airflow.models import SlaMiss
@@ -126,9 +127,7 @@ def get_task_instances(
     offset: Optional[int] = None,
     session=None,
 ):  # pylint: disable=too-many-arguments
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     base_query = session.query(TI)
 
     if dag_id != "~":
@@ -179,9 +178,7 @@ def get_task_instances(
 )
 @provide_session
 def get_task_instances_batch(session=None):
-    """
-    Get list of task instances.
-    """
+    """Get list of task instances."""
     body = request.get_json()
     try:
         data = task_instance_batch_form.load(body)
@@ -239,9 +236,7 @@ def get_task_instances_batch(session=None):
 )
 @provide_session
 def post_clear_task_instances(dag_id: str, session=None):
-    """
-    Clear task instances.
-    """
+    """Clear task instances."""
     body = request.get_json()
     try:
         data = clear_task_instance_form.load(body)
@@ -292,9 +287,13 @@ def post_set_task_instances_state(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    dag = current_app.dag_bag.get_dag(dag_id)
-    if not dag:
-        error_message = "Dag ID {} not found".format(dag_id)
+    error_message = "Dag ID {} not found".format(dag_id)
+    try:
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            raise NotFound(error_message)
+    except SerializedDagNotFound:
+        # If DAG is not found in serialized_dag table
         raise NotFound(error_message)
 
     task_id = data['task_id']

@@ -144,7 +144,7 @@ class AzureBatchOperator(BaseOperator):
     :type os_family: Optional[str]
 
     :param os_version: The OS family version
-    :type os_version: Optionale[str]
+    :type os_version: Optional[str]
 
     :param timeout: The amount of time to wait for the job to complete in minutes. Default is 25
     :type timeout: int
@@ -378,10 +378,7 @@ class AzureBatchOperator(BaseOperator):
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
 
     def get_hook(self) -> AzureBatchHook:
-        """
-        Create and return an AzureBatchHook.
-
-        """
+        """Create and return an AzureBatchHook."""
         return AzureBatchHook(azure_batch_conn_id=self.azure_batch_conn_id)
 
     def clean_up(self, pool_id: Optional[str] = None, job_id: Optional[str] = None) -> None:

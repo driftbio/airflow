@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Google Analytics 360 operators.
-"""
+"""This module contains Google Analytics 360 operators."""
 import csv
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, Sequence, Union, Any, List
@@ -462,7 +460,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        super(GoogleAnalyticsModifyFileHeadersDataImportOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
         self.gcp_conn_id = gcp_conn_id

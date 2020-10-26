@@ -119,7 +119,7 @@ def provide_gcp_connection(
     connection. It build a new connection that includes path to provided service json,
     required scopes and project id.
 
-    :param key_file_path: Path to file with Gooogle Cloud Service Account .json file.
+    :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :type key_file_path: str
     :param scopes: OAuth scopes for the connection
     :type scopes: Sequence
@@ -305,9 +305,7 @@ class _CredentialProvider(LoggingMixin):
 
 
 def get_credentials_and_project_id(*args, **kwargs) -> Tuple[google.auth.credentials.Credentials, str]:
-    """
-    Returns the Credentials object for Google API and the associated project_id.
-    """
+    """Returns the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 
 

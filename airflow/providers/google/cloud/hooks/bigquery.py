@@ -65,9 +65,7 @@ BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
 
 # pylint: disable=too-many-public-methods
 class BigQueryHook(GoogleBaseHook, DbApiHook):
-    """
-    Interact with BigQuery. This hook uses the Google Cloud connection.
-    """
+    """Interact with BigQuery. This hook uses the Google Cloud connection."""
 
     conn_name_attr = 'gcp_conn_id'  # type: str
 
@@ -102,9 +100,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
 
     def get_conn(self) -> "BigQueryConnection":
-        """
-        Returns a BigQuery PEP 249 connection object.
-        """
+        """Returns a BigQuery PEP 249 connection object."""
         service = self.get_service()
         return BigQueryConnection(
             service=service,
@@ -116,9 +112,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     def get_service(self) -> Resource:
-        """
-        Returns a BigQuery service object.
-        """
+        """Returns a BigQuery service object."""
         warnings.warn(
             "This method will be deprecated. Please use `BigQueryHook.get_client` method", DeprecationWarning
         )
@@ -703,7 +697,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type table_id: str
         :param table_resource: Table resource as described in documentation:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-            The table has to contain ``tableReference`` or ``project_id``, ``datset_id`` and ``table_id``
+            The table has to contain ``tableReference`` or ``project_id``, ``dataset_id`` and ``table_id``
             have to be provided.
         :type table_resource: Dict[str, Any]
         :param fields: The fields of ``table`` to change, spelled as the Table
@@ -1364,9 +1358,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.done(retry=retry)
 
     def cancel_query(self) -> None:
-        """
-        Cancel all started queries that have not yet completed
-        """
+        """Cancel all started queries that have not yet completed"""
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.cancel_job`.",
             DeprecationWarning,
@@ -2914,7 +2906,7 @@ def _validate_src_fmt_configs(
 ) -> Dict:
     """
     Validates the given src_fmt_configs against a valid configuration for the source format.
-    Adds the backward compatiblity config to the src_fmt_configs.
+    Adds the backward compatibility config to the src_fmt_configs.
 
     :param source_format: File format to export.
     :type source_format: str
