@@ -26,7 +26,7 @@ from time import sleep
 from urllib.parse import urlparse
 
 import requests
-from requests import exceptions as requests_exceptions, PreparedRequest
+from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
 from airflow import __version__
@@ -41,7 +41,10 @@ RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
-USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 
 class RunState:
@@ -199,7 +202,7 @@ class DatabricksHook(BaseHook):  # noqa
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException(
-                        'Response: {0}, Status Code: {1}'.format(e.response.content, e.response.status_code)
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
                     )
 
                 self._log_request_error(attempt_num, e)
@@ -310,6 +313,28 @@ class DatabricksHook(BaseHook):  # noqa
         :param json: json dictionary containing cluster specification.
         """
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
+
+    def install(self, json: dict) -> None:
+        """
+        Install libraries on the cluster.
+
+        Utility function to call the ``2.0/libraries/install`` endpoint.
+
+        :param json: json dictionary containing cluster_id and an array of library
+        :type json: dict
+        """
+        self._do_api_call(INSTALL_LIBS_ENDPOINT, json)
+
+    def uninstall(self, json: dict) -> None:
+        """
+        Uninstall libraries on the cluster.
+
+        Utility function to call the ``2.0/libraries/uninstall`` endpoint.
+
+        :param json: json dictionary containing cluster_id and an array of library
+        :type json: dict
+        """
+        self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
 
 def _retryable_error(exception) -> bool:

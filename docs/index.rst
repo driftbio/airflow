@@ -78,8 +78,9 @@ Content
     license
     start
     installation
+    provider-packages
     tutorial
-    tutorial_decorated_flows
+    tutorial_taskflow_api
     howto/index
     ui
     concepts
@@ -115,3 +116,5 @@ Content
     Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
     Configurations <configurations-ref>
+    Extra packages <extra-packages-ref>
+    Provider packages <provider-packages-ref>

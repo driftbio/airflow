@@ -27,7 +27,7 @@ from datetime import datetime
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, List
+from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -318,6 +318,38 @@ class GCSHook(GoogleBaseHook):
             tmp_file.flush()
             yield tmp_file
 
+    @_fallback_object_url_to_object_name_and_bucket_name()
+    @contextmanager
+    def provide_file_and_upload(
+        self,
+        bucket_name: Optional[str] = None,
+        object_name: Optional[str] = None,
+        object_url: Optional[str] = None,  # pylint: disable=unused-argument
+    ):
+        """
+        Creates temporary file, returns a file handle and uploads the files content
+        on close.
+
+        You can use this method by passing the bucket_name and object_name parameters
+        or just object_url parameter.
+
+        :param bucket_name: The bucket to fetch from.
+        :type bucket_name: str
+        :param object_name: The object to fetch.
+        :type object_name: str
+        :param object_url: File reference url. Must start with "gs: //"
+        :type object_url: str
+        :return: File handler
+        """
+        if object_name is None:
+            raise ValueError("Object name can not be empty")
+
+        _, _, file_name = object_name.rpartition("/")
+        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+            yield tmp_file
+            tmp_file.flush()
+            self.upload(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
+
     def upload(
         self,
         bucket_name: str,
@@ -383,7 +415,7 @@ class GCSHook(GoogleBaseHook):
             blob.upload_from_string(data, content_type=mime_type)
             self.log.info('Data stream uploaded to %s in %s bucket', object_name, bucket_name)
         else:
-            raise ValueError("'filename' and 'data' parameter missing. " "One is required to upload to gcs.")
+            raise ValueError("'filename' and 'data' parameter missing. One is required to upload to gcs.")
 
     def exists(self, bucket_name: str, object_name: str) -> bool:
         """
@@ -414,7 +446,7 @@ class GCSHook(GoogleBaseHook):
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(object_name, bucket_name))
+            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
         return blob.updated
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
@@ -630,7 +662,7 @@ class GCSHook(GoogleBaseHook):
         :type object_name: str
         """
         self.log.info(
-            'Retrieving the crc32c checksum of ' 'object_name: %s in bucket_name: %s',
+            'Retrieving the crc32c checksum of object_name: %s in bucket_name: %s',
             object_name,
             bucket_name,
         )
@@ -651,7 +683,7 @@ class GCSHook(GoogleBaseHook):
             storage bucket_name.
         :type object_name: str
         """
-        self.log.info('Retrieving the MD5 hash of ' 'object: %s in bucket: %s', object_name, bucket_name)
+        self.log.info('Retrieving the MD5 hash of object: %s in bucket: %s', object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)

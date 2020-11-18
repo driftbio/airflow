@@ -20,9 +20,10 @@ from os import path
 
 import connexion
 from connexion import ProblemException
-from flask import Flask
+from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
+from airflow.security import permissions
 
 log = logging.getLogger(__name__)
 
@@ -45,20 +46,54 @@ def init_appbuilder_views(app):
     # Remove the session from scoped_session registry to avoid
     # reusing a session with a disconnected connection
     appbuilder.session.remove()
-    appbuilder.add_view_no_menu(views.Airflow())
     appbuilder.add_view_no_menu(views.DagModelView())
-    appbuilder.add_view(views.DagRunModelView, "DAG Runs", category="Browse", category_icon="fa-globe")
-    appbuilder.add_view(views.JobModelView, "Jobs", category="Browse")
-    appbuilder.add_view(views.LogModelView, "Logs", category="Browse")
-    appbuilder.add_view(views.SlaMissModelView, "SLA Misses", category="Browse")
-    appbuilder.add_view(views.TaskInstanceModelView, "Task Instances", category="Browse")
-    appbuilder.add_view(views.TaskRescheduleModelView, "Task Reschedules", category="Browse")
-    appbuilder.add_view(views.ConfigurationView, "Configurations", category="Admin", category_icon="fa-user")
-    appbuilder.add_view(views.ConnectionModelView, "Connections", category="Admin")
-    appbuilder.add_view(views.PluginView, "Plugins", category="Admin")
-    appbuilder.add_view(views.PoolModelView, "Pools", category="Admin")
-    appbuilder.add_view(views.VariableModelView, "Variables", category="Admin")
-    appbuilder.add_view(views.XComModelView, "XComs", category="Admin")
+    appbuilder.add_view_no_menu(views.Airflow())
+    appbuilder.add_view(
+        views.DagRunModelView,
+        permissions.RESOURCE_DAG_RUN,
+        category=permissions.RESOURCE_BROWSE_MENU,
+        category_icon="fa-globe",
+    )
+    appbuilder.add_view(
+        views.JobModelView, permissions.RESOURCE_JOB, category=permissions.RESOURCE_BROWSE_MENU
+    )
+    appbuilder.add_view(
+        views.LogModelView, permissions.RESOURCE_AUDIT_LOG, category=permissions.RESOURCE_BROWSE_MENU
+    )
+    appbuilder.add_view(
+        views.VariableModelView, permissions.RESOURCE_VARIABLE, category=permissions.RESOURCE_ADMIN_MENU
+    )
+    appbuilder.add_view(
+        views.TaskInstanceModelView,
+        permissions.RESOURCE_TASK_INSTANCE,
+        category=permissions.RESOURCE_BROWSE_MENU,
+    )
+    appbuilder.add_view(
+        views.TaskRescheduleModelView,
+        permissions.RESOURCE_TASK_RESCHEDULE,
+        category=permissions.RESOURCE_BROWSE_MENU,
+    )
+    appbuilder.add_view(
+        views.ConfigurationView,
+        permissions.RESOURCE_CONFIG,
+        category=permissions.RESOURCE_ADMIN_MENU,
+        category_icon="fa-user",
+    )
+    appbuilder.add_view(
+        views.ConnectionModelView, permissions.RESOURCE_CONNECTION, category=permissions.RESOURCE_ADMIN_MENU
+    )
+    appbuilder.add_view(
+        views.SlaMissModelView, permissions.RESOURCE_SLA_MISS, category=permissions.RESOURCE_BROWSE_MENU
+    )
+    appbuilder.add_view(
+        views.PluginView, permissions.RESOURCE_PLUGIN, category=permissions.RESOURCE_ADMIN_MENU
+    )
+    appbuilder.add_view(
+        views.PoolModelView, permissions.RESOURCE_POOL, category=permissions.RESOURCE_ADMIN_MENU
+    )
+    appbuilder.add_view(
+        views.XComModelView, permissions.RESOURCE_XCOM, category=permissions.RESOURCE_ADMIN_MENU
+    )
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links
     appbuilder.add_view_no_menu(views.RedocView)
@@ -100,11 +135,27 @@ def init_error_handlers(app: Flask):
 
 def init_api_connexion(app: Flask) -> None:
     """Initialize Stable API"""
+    base_path = '/api/v1'
+
+    from airflow.www import views
+
+    @app.errorhandler(404)
+    @app.errorhandler(405)
+    def _handle_api_error(ex):
+        if request.path.startswith(base_path):
+            # 404 errors are never handled on the blueprint level
+            # unless raised from a view func so actual 404 errors,
+            # i.e. "no route for it" defined, need to be handled
+            # here on the application level
+            return common_error_handler(ex)
+        else:
+            return views.circles(ex)
+
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)
     connexion_app.app = app
     api_bp = connexion_app.add_api(
-        specification='v1.yaml', base_path='/api/v1', validate_responses=True, strict_validation=True
+        specification='v1.yaml', base_path=base_path, validate_responses=True, strict_validation=True
     ).blueprint
     app.register_error_handler(ProblemException, common_error_handler)
     app.extensions['csrf'].exempt(api_bp)

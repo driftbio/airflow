@@ -146,7 +146,7 @@ function initializeUITimezone() {
   changDisplayedTimezone(selectedTz || Airflow.defaultUITimezone);
 
   if (Airflow.serverTimezone !== 'UTC') {
-    $('#timezone-server a').text(`${formatTimezone(Airflow.serverTimezone)} <span class="label label-primary">Server</span>`);
+    $('#timezone-server a').html(`${formatTimezone(Airflow.serverTimezone)} <span class="label label-primary">Server</span>`);
     $('#timezone-server').show();
   }
 
@@ -160,13 +160,6 @@ function initializeUITimezone() {
 
   $('a[data-timezone]').click((evt) => {
     changDisplayedTimezone($(evt.target).data('timezone'));
-  });
-
-  $('#timezone-dropdown').on('hide.bs.dropdown', (evt) => {
-    if (document.activeElement.id === 'timezone-other') {
-      // Don't let the dropdown close if the input is active
-      evt.preventDefault();
-    }
   });
 
   $('#timezone-other').typeahead({
@@ -192,7 +185,6 @@ function initializeUITimezone() {
         // Bug in typeahed, it thinks it's still shown!
         this.shown = false;
         this.focused = false;
-        $('#timezone-menu').dropdown('toggle');
       }, 1);
     },
   });

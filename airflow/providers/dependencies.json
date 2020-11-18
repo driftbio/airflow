@@ -38,7 +38,9 @@
     "mysql",
     "postgres",
     "presto",
-    "sftp"
+    "salesforce",
+    "sftp",
+    "ssh"
   ],
   "hashicorp": [
     "google"

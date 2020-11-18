@@ -14,7 +14,9 @@ Ansible
 AppBuilder
 Arg
 Args
+ashb
 Async
+Atlassian
 Auth
 AutoMlClient
 Autoscale
@@ -68,6 +70,7 @@ ComputeNodeState
 Computenodes
 Config
 Configs
+ContainerPort
 Cron
 Ctrl
 Daemonize
@@ -122,6 +125,7 @@ EmrAddSteps
 EmrCreateJobFlow
 Enum
 Env
+EnvVar
 ExaConnection
 Exasol
 Failover
@@ -196,7 +200,6 @@ JobRunning
 JobTrigger
 Json
 Jupyter
-jupytercmd
 KYLIN
 Kalibrr
 Kamil
@@ -265,6 +268,7 @@ Parallelize
 Parameterizing
 Paramiko
 Params
+Paxos
 Pem
 Pinot
 Popen
@@ -340,6 +344,7 @@ SubscriberClient
 Subtasks
 Sumit
 Systemd
+Terraform
 TCP
 TLS
 TTY
@@ -356,6 +361,7 @@ ToC
 Tomasz
 Tooltip
 Tsai
+Tuneables
 UA
 Uellendall
 Umask
@@ -435,6 +441,7 @@ artwr
 asc
 ascii
 asciiart
+ashb
 asia
 assertEqualIgnoreMultipleSpaces
 ast
@@ -468,13 +475,13 @@ backfilling
 backfills
 backoff
 backport
+backported
 backreference
 backtick
 backticks
 balancer
 balancers
 baseOperator
-basedn
 basestring
 basetaskrunner
 bashrc
@@ -621,7 +628,6 @@ de
 decomissioning
 decrypt
 decrypted
-decyption
 deepcopy
 deidentify
 del
@@ -665,6 +671,7 @@ dsn
 dttm
 dtypes
 durations
+dylib
 dynamodb
 dynload
 eRevalue
@@ -677,6 +684,7 @@ emr
 enableAutoScale
 encryptor
 enqueue
+enqueued
 entrypoint
 enum
 env
@@ -782,6 +790,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+homebrew
 honoured
 hostPath
 hostname
@@ -863,6 +872,8 @@ js
 json
 jthomas
 jupyter
+jupytercmd
+kaxil
 kaxilnaik
 keepalive
 keepalives
@@ -988,12 +999,14 @@ openfaas
 oper
 optimise
 ora
+orm
 orchestrator
 orgtbl
 os
 ot
 overridable
 oversubscription
+pagerduty
 pageviews
 paginator
 papermill
@@ -1015,6 +1028,7 @@ pid
 pigcmd
 pinodb
 pinot
+pkill
 plaintext
 platformVersion
 pluggable
@@ -1103,9 +1117,10 @@ repo
 repos
 reqs
 resetdb
+ResourceRequirements
 resourceVersion
-resumable
 resultset
+resumable
 retransmits
 rfc
 ricard
@@ -1121,6 +1136,7 @@ ru
 runAsUser
 runnable
 runtime
+ryanahamilton
 ryw
 sagemaker
 saguziel
@@ -1133,6 +1149,7 @@ savedModel
 scalability
 scalable
 sched
+schedulable
 schedulername
 schemas
 sdk
@@ -1229,6 +1246,7 @@ superclass
 svg
 swp
 symlink
+symlinks
 symlinking
 sync'ed
 sys
@@ -1239,6 +1257,7 @@ tablefmt
 tagKey
 tagValue
 tao
+taskflow
 taskinstance
 tblproperties
 tcp
@@ -1327,6 +1346,7 @@ verticaql
 videointelligence
 virtualenv
 vm
+VolumeMount
 volumeMounts
 wasb
 webProperty

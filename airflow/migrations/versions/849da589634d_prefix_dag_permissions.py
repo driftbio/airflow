@@ -19,7 +19,7 @@
 """Prefix DAG permissions.
 
 Revision ID: 849da589634d
-Revises: 52d53670a240
+Revises: 03afc6b6f902
 Create Date: 2020-10-01 17:25:10.006322
 
 """
@@ -29,30 +29,28 @@ from airflow.www.app import cached_app
 
 # revision identifiers, used by Alembic.
 revision = '849da589634d'
-down_revision = '52d53670a240'
+down_revision = '03afc6b6f902'
 branch_labels = None
 depends_on = None
 
 
-def upgrade():   # noqa: D103
+def upgrade():  # noqa: D103
     permissions = ['can_dag_read', 'can_dag_edit']
     view_menus = cached_app().appbuilder.sm.get_all_view_menu()
     convert_permissions(permissions, view_menus, upgrade_action, upgrade_dag_id)
 
 
-def downgrade():   # noqa: D103
+def downgrade():  # noqa: D103
     permissions = ['can_read', 'can_edit']
     vms = cached_app().appbuilder.sm.get_all_view_menu()
-    view_menus = [
-        vm for vm in vms if (vm.name == permissions.RESOURCE_DAGS or vm.name.startswith('DAG:'))
-    ]
+    view_menus = [vm for vm in vms if (vm.name == permissions.RESOURCE_DAG or vm.name.startswith('DAG:'))]
     convert_permissions(permissions, view_menus, downgrade_action, downgrade_dag_id)
 
 
 def upgrade_dag_id(dag_id):
     """Adds the 'DAG:' prefix to a DAG view if appropriate."""
     if dag_id == 'all_dags':
-        return permissions.RESOURCE_DAGS
+        return permissions.RESOURCE_DAG
     if dag_id.startswith("DAG:"):
         return dag_id
     return f"DAG:{dag_id}"
@@ -60,10 +58,10 @@ def upgrade_dag_id(dag_id):
 
 def downgrade_dag_id(dag_id):
     """Removes the 'DAG:' prefix from a DAG view name to return the DAG id."""
-    if dag_id == permissions.RESOURCE_DAGS:
+    if dag_id == permissions.RESOURCE_DAG:
         return 'all_dags'
     if dag_id.startswith("DAG:"):
-        return dag_id[len("DAG:"):]
+        return dag_id[len("DAG:") :]
     return dag_id
 
 
