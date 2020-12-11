@@ -35,6 +35,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
+  - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
 
@@ -65,7 +66,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
-- Set your version to 1.10.2 in `airflow/version.py` (without the RC tag)
+- Set your version to 1.10.2 in `setup.py` (without the RC tag)
 - Commit the version change.
 
 - Tag your release
@@ -83,7 +84,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tarball the repo
 
     ```shell script
-    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz`
+    git archive --format=tar.gz ${VERSION} --prefix=apache-airflow-${VERSION}/ -o apache-airflow-${VERSION}-source.tar.gz
     ```
 
 
@@ -117,6 +118,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git push origin ${VERSION}
     ```
 
+- Tag & Push latest constraints files
+
+    ```shell script
+    git checkout constraints-1-10
+    git tag -s "constraints-${VERSION%rc?}"
+    git push origin "constraints-${VERSION%rc?}"
+    ```
+
 - Push the artifacts to ASF dev dist repo
 
 ```
@@ -139,7 +148,7 @@ svn commit -m "Add artifacts for Airflow ${VERSION}"
 At this point we have the artefact that we vote on, but as a convenience to developers we also want to
 publish "snapshots" of the RC builds to pypi for installing via pip. To do this we need to
 
-- Edit the `airflow/version.py` to include the RC suffix.
+- Edit the `setup.py` to include the RC suffix.
 
 - Build the package:
 
@@ -168,7 +177,7 @@ https://test.pypi.org/project/apache-airflow/#files
 - Again, confirm that the package is available here:
 https://pypi.python.org/pypi/apache-airflow
 
-- Throw away the change - we don't want to commit this: `git checkout airflow/version.py`
+- Throw away the change - we don't want to commit this: `git checkout setup.py`
 
 It is important to stress that this snapshot should not be named "release", and it
 is not supposed to be used by and advertised to the end-users who do not read the devlist.
@@ -327,7 +336,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify `basename $i .sha512 `
+   echo "Checking $i"; gpg --verify `basename $i .asc`
 done
 ```
 
@@ -372,7 +381,7 @@ Run this:
 ```shell script
 for i in *.sha512
 do
-    echo "Checking $i"; gpg --print-md SHA512 `basename $i .sha512 ` | diff - $i
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
 done
 ```
 
@@ -507,13 +516,13 @@ At this point we release an official package:
 - Build the package:
 
     ```shell script
-    python setup.py compile_assets sdist bdist_wheel`
+    python setup.py compile_assets sdist bdist_wheel
     ```
 
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    twine check dist/*`
+    twine check dist/*
     ```
 
 - Upload the package to PyPi's test environment:
@@ -542,6 +551,43 @@ At this point we release an official package:
     ```
 
 - Update CHANGELOG.md with the details, and commit it.
+
+## Publish documentation
+
+Documentation is an essential part of the product and should be made available to users.
+In our cases, documentation for the released versions is published in a separate repository - [`apache/airflow-site`](https://github.com/apache/airflow-site), but the documentation source code and build tools are available in the `apache/airflow` repository, so you have to coordinate between the two repositories to be able to build the documentation.
+
+Documentation for providers can be found in the ``/docs/apache-airflow`` directory.
+
+- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+
+    ```shell script
+    git clone https://github.com/apache/airflow-site.git airflow-site
+    cd airflow-site
+    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+    ```
+
+- Then you can go to the directory and build the necessary documentation packages
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    ./breeze build-docs -- --package-filter apache-airflow --for-production
+    ```
+
+- Now you can preview the documentation.
+
+    ```shell script
+    ./docs/start_doc_server.sh
+    ```
+
+- Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
+
+    ```shell script
+    ./docs/publish_docs.py --package apache-airflow
+    cd "${AIRFLOW_SITE_DIRECTORY}"
+    git commit -m "Add documentation for Apache Airflow ${VERSION}"
+    git push
+    ```
 
 ## Notify developers of release
 
@@ -575,9 +621,7 @@ https://pypi.python.org/pypi/apache-airflow
 
 The documentation is available on:
 https://airflow.apache.org/
-https://airflow.apache.org/1.10.2/
-https://airflow.readthedocs.io/en/1.10.2/
-https://airflow.readthedocs.io/en/stable/
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
 

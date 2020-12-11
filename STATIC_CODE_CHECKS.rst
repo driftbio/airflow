@@ -72,8 +72,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                Checks if integration list is synchronized in code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``             Checks that merge conflicts are not being committed.
@@ -113,6 +111,8 @@ require Breeze Docker images to be installed locally:
 ``insert-license``                    Adds licenses for most file types.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
+----------------------------------- ---------------------------------------------------------------- ------------
+``json-schema``                       Checks that the files complies with the JSON Schema spec
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -171,8 +171,6 @@ require Breeze Docker images to be installed locally:
 ``update-setup-cfg-file``             Update setup.cfg file with all licenses.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation.
------------------------------------ ---------------------------------------------------------------- ------------
-``version-sync``                      Synchronizes versions setup.py <-> airflow/version.py.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
 =================================== ================================================================ ============
