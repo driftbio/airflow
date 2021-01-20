@@ -18,22 +18,24 @@
 Production Deployment
 ^^^^^^^^^^^^^^^^^^^^^
 
-It is time to deploy your DAG in production. To do this, first, you need to make sure that the Airflow is itself production-ready.
-Let's see what precautions you need to take.
+It is time to deploy your DAG in production. To do this, first, you need to make sure that the Airflow
+is itself production-ready. Let's see what precautions you need to take.
 
 Database backend
 ================
 
-Airflow comes with an ``SQLite`` backend by default. This allows the user to run Airflow without any external database.
-However, such a setup is meant to be used for testing purposes only; running the default setup in production can lead to data loss in multiple scenarios.
-If you want to run production-grade Airflow, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
+Airflow comes with an ``SQLite`` backend by default. This allows the user to run Airflow without any external
+database. However, such a setup is meant to be used for testing purposes only; running the default setup
+in production can lead to data loss in multiple scenarios. If you want to run production-grade Airflow,
+make sure you :doc:`configure the backend <howto/set-up-database>` to be an external database
+such as PostgreSQL or MySQL.
 
 You can change the backend using the following config
 
 .. code-block:: ini
 
- [core]
- sql_alchemy_conn = my_conn_string
+    [core]
+    sql_alchemy_conn = my_conn_string
 
 Once you have changed the backend, airflow needs to create all the tables required for operation.
 Create an empty DB and give airflow's user the permission to ``CREATE/ALTER`` it.
@@ -41,39 +43,45 @@ Once that is done, you can run -
 
 .. code-block:: bash
 
- airflow db upgrade
+    airflow db upgrade
 
 ``upgrade`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
 .. note::
 
- Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not required in production DB.
+    Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not
+    required in production DB.
 
 
 Multi-Node Cluster
 ==================
 
-Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its nature, the user is limited to executing at most
-one task at a time. ``Sequential Executor`` also pauses the scheduler when it runs a task, hence not recommended in a production setup.
-You should use the :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine.
-For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or the :doc:`Celery executor <../executor/celery>`.
+Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` by default. However, by it
+nature, the user is limited to executing at most one task at a time. ``Sequential Executor`` also pauses
+the scheduler when it runs a task, hence not recommended in a production setup. You should use the
+:class:`~airflow.executors.local_executor.LocalExecutor` for a single machine.
+For a multi-node setup, you should use the :doc:`Kubernetes executor <../executor/kubernetes>` or
+the :doc:`Celery executor <../executor/celery>`.
 
 
-Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
-Airflow sends simple instructions such as "execute task X of dag Y", but does not send any dag files or configuration. You can use a simple cronjob or
-any other mechanism to sync DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
+Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
+the same configuration and dags. Airflow sends simple instructions such as "execute task X of dag Y", but
+does not send any dag files or configuration. You can use a simple cronjob or any other mechanism to sync
+DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
 
 
 Logging
 =======
 
-If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as
-Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
-This way, the logs are available even after the node goes down or gets replaced. See :doc:`logging-monitoring/logging-tasks` for configurations.
+If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system
+(DFS) such as ``S3`` and ``GCS``, or external services such as Stackdriver Logging, Elasticsearch or
+Amazon CloudWatch. This way, the logs are available even after the node goes down or gets replaced.
+See :doc:`logging-monitoring/logging-tasks` for configurations.
 
 .. note::
 
-    The logs only appear in your DFS after the task has finished. You can view the logs while the task is running in UI itself.
+    The logs only appear in your DFS after the task has finished. You can view the logs while the task is
+    running in UI itself.
 
 
 Configuration
@@ -98,14 +106,18 @@ Some configurations such as the Airflow Backend connection URI can be derived fr
 Scheduler Uptime
 ================
 
-Airflow users have for a long time been affected by a
-`core Airflow bug <https://issues.apache.org/jira/browse/AIRFLOW-401>`_
-that causes the scheduler to hang without a trace.
+Airflow users occasionally report instances of the scheduler hanging without a trace, for example in these issues:
 
-Until fully resolved, you can mitigate this issue via a few short-term workarounds:
+* `Scheduler gets stuck without a trace <https://github.com/apache/airflow/issues/7935>`_
+* `Scheduler stopping frequently <https://github.com/apache/airflow/issues/13243>`_
 
-* Set a reasonable run_duration setting in your ``airflow.cfg``. `Example config <https://github.com/astronomer/airflow-chart/blob/63bc503c67e2cd599df0b6f831d470d09bad7ee7/templates/configmap.yaml#L44>`_.
-* Add an ``exec`` style health check to your helm charts on the scheduler deployment to fail if the scheduler has not heartbeat in a while. `Example health check definition <https://github.com/astronomer/helm.astronomer.io/pull/200/files>`_.
+Strategies for mitigation:
+
+* When running on kubernetes, use a ``livenessProbe`` on the scheduler deployment to fail if the scheduler
+  has not heartbeat in a while.
+  `Example: <https://github.com/apache/airflow/blob/190066cf201e5b0442bbbd6df74efecae523ee76/chart/templates/scheduler/scheduler-deployment.yaml#L118-L136>`_.
+
+.. _docker_image:
 
 Production Container Images
 ===========================
@@ -118,7 +130,7 @@ way we do, you might want to know very quickly how you can extend or customize t
 for Apache Airflow. This chapter gives you a short answer to those questions.
 
 The docker image provided (as convenience binary package) in the
-`Apache Airflow DockerHub <https://hub.docker.com/repository/docker/apache/airflow>`_ is a bare image
+`Apache Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_ is a bare image
 that has not many external dependencies and extras installed. Apache Airflow has many extras
 that can be installed alongside the "core" airflow image and they often require some additional
 dependencies. The Apache Airflow image provided as convenience package is optimized for size, so
@@ -151,7 +163,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:2.0.0
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -168,7 +180,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:2.0.0
   RUN pip install --no-cache-dir --user my-awesome-pip-dependency-to-add
 
 
@@ -179,7 +191,7 @@ You should be aware, about a few things:
 
 .. code-block:: dockerfile
 
-  FROM apache/airflow:1.10.14
+  FROM apache/airflow:2.0.0
   USER root
   RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -212,7 +224,7 @@ in the `<#production-image-build-arguments>`_ chapter below.
 
 Here just a few examples are presented which should give you general understanding of what you can customize.
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -220,10 +232,10 @@ additional apt dev and runtime dependencies.
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
@@ -238,7 +250,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 .. code-block:: bash
 
   ./breeze build-image \
-      --production-image  --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image  --python 3.7 --install-airflow-version=2.0.0 \
       --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 
@@ -253,10 +265,10 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
   docker build . -f Dockerfile \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
@@ -271,9 +283,13 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
         rocketchat_API \
         typeform" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
-    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
+    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | \
+    apt-key add --no-tty - && \
+    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y" \
-    --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
+    --build-arg ADDITIONAL_RUNTIME_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | \
+    apt-key add --no-tty - && \
+    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="msodbcsql17 unixodbc git procps vim" \
     --build-arg ADDITIONAL_RUNTIME_ENV_VARS="ACCEPT_EULA=Y" \
     --tag my-image
@@ -309,22 +325,33 @@ Preparing the constraint files and wheel files:
 
   rm docker-context-files/*.whl docker-context-files/*.txt
 
-  curl -Lo "docker-context-files/constraints-1-10.txt" \
-    https://raw.githubusercontent.com/apache/airflow/constraints-1-10/constraints-3.7.txt
+  curl -Lo "docker-context-files/constraints-2-0.txt" \
+    https://raw.githubusercontent.com/apache/airflow/constraints-2-0/constraints-3.7.txt
 
   pip download --dest docker-context-files \
-    --constraint docker-context-files/constraints-1-10.txt  \
-    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==1.10.14
+    --constraint docker-context-files/constraints-2-0.txt  \
+    apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,mysql,postgres,redis,slack,ssh,statsd,virtualenv]==2.0.0
 
+Since apache-airflow .whl packages are treated differently by the docker image, you need to rename the
+downloaded apache-airflow* files, for example:
 
-Building the image (after copying the files downloaded to the "docker-context-files" directory:
+.. code-block:: bash
+
+   pushd docker-context-files
+   for file in apache?airflow*
+   do
+     mv ${file} _${file}
+   done
+   popd
+
+Building the image:
 
 .. code-block:: bash
 
   ./breeze build-image \
-      --production-image --python 3.7 --install-airflow-version=1.10.14 \
+      --production-image --python 3.7 --install-airflow-version=2.0.0 \
       --disable-mysql-client-installation --disable-pip-cache --install-from-local-files-when-building \
-      --constraints-location="/docker-context-files/constraints-1-10.txt"
+      --constraints-location="/docker-context-files/constraints-2-0.txt"
 
 or
 
@@ -333,16 +360,16 @@ or
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-1-10.txt"
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-2-0.txt"
 
 
 Customizing & extending the image together
@@ -399,9 +426,9 @@ Here is the comparison of the two types of building images.
 +----------------------------------------------------+---------------------+-----------------------+
 
 [1] When you combine customizing and extending the image, you can use external sources
-    in the "extend" part. There are plans to add functionality to add external sources
-    option to image customization. You can also modify Dockerfile manually if you want to
-    use non-default sources for dependencies.
+in the "extend" part. There are plans to add functionality to add external sources
+option to image customization. You can also modify Dockerfile manually if you want to
+use non-default sources for dependencies.
 
 Using the production image
 --------------------------
@@ -476,18 +503,18 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image                        |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.6``                                  | major/minor version of Python (should    |
-|                                          |                                          | match base image)                        |
+|                                          |                                          | match base image).                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION``                      | ``2.0.0.dev0``                           | version of Airflow                       |
+| ``AIRFLOW_VERSION``                      | ``2.0.0.dev0``                           | version of Airflow.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_REPO``                         | ``apache/airflow``                       | the repository from which PIP            |
-|                                          |                                          | dependencies are pre-installed           |
+|                                          |                                          | dependencies are pre-installed.          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_BRANCH``                       | ``master``                               | the branch from which PIP dependencies   |
-|                                          |                                          | are pre-installed initially              |
+|                                          |                                          | are pre-installed initially.             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
 |                                          |                                          | source of the constraints with the       |
@@ -495,101 +522,124 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | file has to be in docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
-|                                          |                                          | .dockerignore                            |
+|                                          |                                          | .dockerignore.                           |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | reference (branch or tag) from GitHub    |
-|                                          |                                          | repository from which constraints are    |
-|                                          |                                          | used. By default it is set to            |
-|                                          |                                          | ``constraints-master`` but can be        |
-|                                          |                                          | ``constraints-1-10`` for 1.10.* versions |
-|                                          |                                          | or it could point to specific version    |
-|                                          |                                          | for example ``constraints-1.10.14``      |
+| ``AIRFLOW_CONSTRAINTS_REFERENCE``        | ``constraints-master``                   | Reference (branch or tag) from GitHub    |
+|                                          |                                          | where constraints file is taken from     |
+|                                          |                                          | It can be ``constraints-master`` but     |
+|                                          |                                          | also can be ``constraints-1-10`` for     |
+|                                          |                                          | 1.10.* installation. In case of building |
+|                                          |                                          | specific version you want to point it    |
+|                                          |                                          | to specific tag, for example             |
+|                                          |                                          | ``constraints-1.10.14``.                 |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``true``                                 | If set to false and image is built from  |
-|                                          |                                          | sources, all provider packages are not   |
-|                                          |                                          | installed. By default when building from |
-|                                          |                                          | sources, all provider packages are also  |
-|                                          |                                          | installed together with the core airflow |
-|                                          |                                          | package. It has no effect when           |
+| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``false``                                | If set to ``true`` and image is built    |
+|                                          |                                          | from sources, all provider packages are  |
+|                                          |                                          | installed from sources rather than from  |
+|                                          |                                          | packages. It has no effect when          |
 |                                          |                                          | installing from PyPI or GitHub repo.     |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
-|                                          |                                          | installed                                |
+|                                          |                                          | installed.                               |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_FROM_PYPI``                    | ``true``                                 | If set to true, Airflow is installed     |
-|                                          |                                          | from pypi. if you want to install        |
-|                                          |                                          | Airflow from externally provided binary  |
-|                                          |                                          | package you can set it to false, place   |
-|                                          |                                          | the package in ``docker-context-files``  |
-|                                          |                                          | and set                                  |
+|                                          |                                          | from PyPI. if you want to install        |
+|                                          |                                          | Airflow from self-build package          |
+|                                          |                                          | you can set it to false, put package in  |
+|                                          |                                          | ``docker-context-files`` and set         |
 |                                          |                                          | ``INSTALL_FROM_DOCKER_CONTEXT_FILES`` to |
-|                                          |                                          | true. For this you have to also set the  |
+|                                          |                                          | ``true``. For this you have to also keep |
 |                                          |                                          | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES`` flag |
-|                                          |                                          | to false                                 |
+|                                          |                                          | set to ``false``.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
+| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``false``                                | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
 |                                          |                                          | This allows to optimize iterations for   |
-|                                          |                                          | Image builds and speeds up CI builds     |
-|                                          |                                          | But in some corporate environments it    |
-|                                          |                                          | might be forbidden to download anything  |
-|                                          |                                          | from public repositories.                |
+|                                          |                                          | Image builds and speeds up CI builds.    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow and it's         |
-|                                          |                                          | dependencies are installed during build  |
-|                                          |                                          | from locally downloaded .whl .tar.gz     |
-|                                          |                                          | files placed in the                      |
-|                                          |                                          | ``docker-context-files``.                |
+| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow, providers and   |
+|                                          |                                          | all dependencies are installed from      |
+|                                          |                                          | from locally built/downloaded            |
+|                                          |                                          | .whl and .tar.gz files placed in the     |
+|                                          |                                          | ``docker-context-files``. In certain     |
+|                                          |                                          | corporate environments, this is required |
+|                                          |                                          | to install airflow from such pre-vetted  |
+|                                          |                                          | packages rather than from PyPI. For this |
+|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``. |
+|                                          |                                          | Note that packages starting with         |
+|                                          |                                          | ``apache?airflow`` glob are treated      |
+|                                          |                                          | differently than other packages. All     |
+|                                          |                                          | ``apache?airflow`` packages are          |
+|                                          |                                          | installed with dependencies limited by   |
+|                                          |                                          | airflow constraints. All other packages  |
+|                                          |                                          | are installed without dependencies       |
+|                                          |                                          | 'as-is'. If you wish to install airflow  |
+|                                          |                                          | via 'pip download' with all dependencies |
+|                                          |                                          | downloaded, you have to rename the       |
+|                                          |                                          | apache airflow and provider packages to  |
+|                                          |                                          | not start with ``apache?airflow`` glob.  |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
+|                                          |                                          | upgraded to newer versions matching      |
+|                                          |                                          | setup.py before installation.            |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``CONTINUE_ON_PIP_CHECK_FAILURE``        | ``false``                                | By default the image build fails if pip  |
+|                                          |                                          | check fails for it. This is good for     |
+|                                          |                                          | interactive building but on CI the       |
+|                                          |                                          | image should be built regardless - we    |
+|                                          |                                          | have a separate step to verify image.    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
-|                                          |                                          | airflow is installed                     |
+|                                          |                                          | airflow is installed.                    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
-|                                          |                                          | the image with some extra dependencies   |
+|                                          |                                          | the image with some extra dependencies.  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``DEV_APT_COMMAND``                      | (see Dockerfile)                         | Dev apt command executed before dev deps |
-|                                          |                                          | are installed in the Build image         |
+|                                          |                                          | are installed in the Build image.        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_COMMAND``           |                                          | Additional Dev apt command executed      |
 |                                          |                                          | before dev dep are installed             |
-|                                          |                                          | in the Build image. Should start with && |
+|                                          |                                          | in the Build image. Should start with    |
+|                                          |                                          | ``&&``.                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``DEV_APT_DEPS``                         | (see Dockerfile)                         | Dev APT dependencies installed           |
-|                                          |                                          | in the Build image                       |
+|                                          |                                          | in the Build image.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_DEPS``              |                                          | Additional apt dev dependencies          |
-|                                          |                                          | installed in the Build image             |
+|                                          |                                          | installed in the Build image.            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_DEV_APT_ENV``               |                                          | Additional env variables defined         |
-|                                          |                                          | when installing dev deps                 |
+|                                          |                                          | when installing dev deps.                |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``RUNTIME_APT_COMMAND``                  | (see Dockerfile)                         | Runtime apt command executed before deps |
-|                                          |                                          | are installed in the Main image          |
+|                                          |                                          | are installed in the Main image.         |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_COMMAND``       |                                          | Additional Runtime apt command executed  |
 |                                          |                                          | before runtime dep are installed         |
-|                                          |                                          | in the Main image. Should start with &&  |
+|                                          |                                          | in the Main image. Should start with     |
+|                                          |                                          | ``&&``.                                  |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``RUNTIME_APT_DEPS``                     | (see Dockerfile)                         | Runtime APT dependencies installed       |
-|                                          |                                          | in the Main image                        |
+|                                          |                                          | in the Main image.                       |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_DEPS``          |                                          | Additional apt runtime dependencies      |
-|                                          |                                          | installed in the Main image              |
+|                                          |                                          | installed in the Main image.             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
-|                                          |                                          | when installing runtime deps             |
+|                                          |                                          | when installing runtime deps.            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
-|                                          |                                          | sqlite databases are stored)             |
+|                                          |                                          | SQLite databases are stored).            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID                         |
+| ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID. Note that most files  |
 |                                          |                                          | created on behalf of airflow user belong |
 |                                          |                                          | to the ``root`` group (0) to keep        |
-|                                          |                                          | OpenShift Guidelines compatibility       |
+|                                          |                                          | OpenShift Guidelines compatibility.      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user       |
+| ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``CASS_DRIVER_BUILD_CONCURRENCY``        | ``8``                                    | Number of processors to use for          |
 |                                          |                                          | cassandra PIP install (speeds up         |
@@ -598,7 +648,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
 |                                          |                                          | The mysql extra is removed from extras   |
-|                                          |                                          | if the client is not installed           |
+|                                          |                                          | if the client is not installed.          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 There are build arguments that determine the installation mechanism of Apache Airflow for the
@@ -608,59 +658,34 @@ production image. There are three types of build:
 * You can build the image from released PyPi airflow package (used to build the official Docker image)
 * You can build the image from any version in GitHub repository(this is used mostly for system testing).
 
-+-----------------------------------+-----------------------------------+
-| Build argument                    | What to specify                   |
-+===================================+===================================+
-| ``AIRFLOW_INSTALL_SOURCES``       | Should point to the sources of    |
-|                                   | of Apache Airflow. It can be      |
-|                                   | either "." for installation from  |
-|                                   | local sources, "apache-airflow"   |
-|                                   | for installation from packages    |
-|                                   | and URL to installation from      |
-|                                   | GitHub repository (see below)     |
-|                                   | to install from any GitHub        |
-|                                   | version                           |
-+-----------------------------------+-----------------------------------+
-| ``AIRFLOW_INSTALL_VERSION``       | Optional - might be used for      |
-|                                   | package installation case to      |
-|                                   | set Airflow version for example   |
-|                                   | "==1.10.14". Remember to also     |
-|                                   | Set ``AIRFLOW_VERSION``           |
-|                                   | when you use it.                  |
-+-----------------------------------+-----------------------------------+
-| ``AIRFLOW_CONSTRAINTS_REFERENCE`` | reference (branch or tag) from    |
-|                                   | GitHub where constraints file     |
-|                                   | is taken from. By default it is   |
-|                                   | ``constraints-master`` but can be |
-|                                   | ``constraints-1-10`` for 1.10.*   |
-|                                   | constraint or if you want to      |
-|                                   | point to specific version         |
-|                                   | might be ``constraints-1.10.14``  |
-+-----------------------------------+-----------------------------------+
-| ``SLUGIFY_USES_TEXT_UNIDECODE``   | In case of of installing airflow  |
-|                                   | 1.10.2 or 1.10.1 you need to      |
-|                                   | set this arg to ``yes``.          |
-+-----------------------------------+-----------------------------------+
-| ``AIRFLOW_WWW``                   | In case of Airflow 2.0 it should  |
-|                                   | be "www", in case of Airflow 1.10 |
-|                                   | series it should be "www_rbac".   |
-|                                   | See examples below                |
-+-----------------------------------+-----------------------------------+
-| ``AIRFLOW_SOURCES_FROM``          | Sources of Airflow. Set it to     |
-|                                   | "empty" to avoid costly           |
-|                                   | Docker context copying            |
-|                                   | in case of installation from      |
-|                                   | the package or from GitHub URL.   |
-|                                   | See examples below                |
-+-----------------------------------+-----------------------------------+
-| ``AIRFLOW_SOURCES_TO``            | Target for Airflow sources. Set   |
-|                                   | to "/empty" to avoid costly       |
-|                                   | Docker context copying            |
-|                                   | in case of installation from      |
-|                                   | the package or from GitHub URL.   |
-|                                   | See examples below                |
-+-----------------------------------+-----------------------------------+
-
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
+| Build argument                    | Default                | What to specify                                                                   |
++===================================+========================+===================================================================================+
+| ``AIRFLOW_INSTALLATION_METHOD``   | ``apache-airflow``     | Should point to the installation method of Apache Airflow. It can be              |
+|                                   |                        | ``apache-airflow`` for installation from packages and URL to installation from    |
+|                                   |                        | GitHub repository tag or branch or "." to install from sources.                   |
+|                                   |                        | Note that installing from local sources requires appropriate values of the        |
+|                                   |                        | ``AIRFLOW_SOURCES_FROM`` and ``AIRFLOW_SOURCES_TO`` variables as described below. |
+|                                   |                        | Only used when ``INSTALL_FROM_PYPI`` is set to ``true``.                          |
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
+| ``AIRFLOW_INSTALL_VERSION``       |                        | Optional - might be used for package installation of different Airflow version    |
+|                                   |                        | for example"==2.0.0". For consistency, you should also set``AIRFLOW_VERSION``     |
+|                                   |                        | to the same value AIRFLOW_VERSION is embedded as label in the image created.      |
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_REFERENCE`` | ``constraints-master`` | Reference (branch or tag) from GitHub where constraints file is taken from.       |
+|                                   |                        | It can be ``constraints-master`` but also can be``constraints-1-10`` for          |
+|                                   |                        | 1.10.*  installations. In case of building specific version                       |
+|                                   |                        | you want to point it to specific tag, for example ``constraints-2.0.0``           |
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
+| ``AIRFLOW_WWW``                   | ``www``                | In case of Airflow 2.0 it should be "www", in case of Airflow 1.10                |
+|                                   |                        | series it should be "www_rbac".                                                   |
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
+| ``AIRFLOW_SOURCES_FROM``          | ``empty``              | Sources of Airflow. Set it to "." when you install airflow from                   |
+|                                   |                        | local sources.                                                                    |
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
+| ``AIRFLOW_SOURCES_TO``            | ``/empty``             | Target for Airflow sources. Set to "/opt/airflow" when                            |
+|                                   |                        | you want to install airflow from local sources.                                   |
++-----------------------------------+------------------------+-----------------------------------------------------------------------------------+
 
 This builds production image in version 3.6 with default extras from the local sources (master version
 of 2.0 currently):
@@ -669,22 +694,22 @@ of 2.0 currently):
 
   docker build .
 
-This builds the production image in version 3.7 with default extras from 1.10.14 tag and
-constraints taken from constraints-1-10-12 branch in GitHub.
+This builds the production image in version 3.7 with default extras from 2.0.0 tag and
+constraints taken from constraints-2-0 branch in GitHub.
 
 .. code-block:: bash
 
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="https://github.com/apache/airflow/archive/1.10.14.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/2.0.0.tar.gz#egg=apache-airflow" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with default extras from 1.10.14 PyPI package and
-constraints taken from 1.10.14 tag in GitHub and pre-installed pip dependencies from the top
+This builds the production image in version 3.7 with default extras from 2.0.0 PyPI package and
+constraints taken from 2.0.0 tag in GitHub and pre-installed pip dependencies from the top
 of v1-10-test branch.
 
 .. code-block:: bash
@@ -692,33 +717,33 @@ of v1-10-test branch.
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
-additional python dependencies and pre-installed pip dependencies from 1.10.14 tagged constraints.
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
+additional python dependencies and pre-installed pip dependencies from 2.0.0 tagged constraints.
 
 .. code-block:: bash
 
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
     --build-arg AIRFLOW_BRANCH="v1-10-test" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1.10.14" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2.0.0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="sshtunnel oauth2client"
 
-This builds the production image in version 3.7 with additional airflow extras from 1.10.14 PyPI package and
+This builds the production image in version 3.7 with additional airflow extras from 2.0.0 PyPI package and
 additional apt dev and runtime dependencies.
 
 .. code-block:: bash
@@ -726,10 +751,10 @@ additional apt dev and runtime dependencies.
   docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
     --build-arg PYTHON_MAJOR_MINOR_VERSION=3.7 \
-    --build-arg AIRFLOW_INSTALL_SOURCES="apache-airflow" \
-    --build-arg AIRFLOW_VERSION="1.10.14" \
-    --build-arg AIRFLOW_INSTALL_VERSION="==1.10.14" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-1-10" \
+    --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
+    --build-arg AIRFLOW_VERSION="2.0.0" \
+    --build-arg AIRFLOW_INSTALL_VERSION="==2.0.0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --build-arg AIRFLOW_SOURCES_FROM="empty" \
     --build-arg AIRFLOW_SOURCES_TO="/empty" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
@@ -737,6 +762,183 @@ additional apt dev and runtime dependencies.
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="default-jre-headless"
 
 
+Actions executed at image start
+-------------------------------
+
+If you are using the default entrypoint of the production image,
+there are a few actions that are automatically performed when the container starts.
+In some cases, you can pass environment variables to the image to trigger some of that behaviour.
+
+The variables that control the "execution" behaviour start with ``_AIRFLOW`` to distinguish them
+from the variables used to build the image starting with ``AIRFLOW``.
+
+Creating system user
+....................
+
+Airflow image is Open-Shift compatible, which means that you can start it with random user ID and group id 0.
+Airflow will automatically create such a user and make it's home directory point to ``/home/airflow``.
+You can read more about it in the "Support arbitrary user ids" chapter in the
+`Openshift best practices <https://docs.openshift.com/container-platform/4.1/openshift_images/create-images.html#images-create-guide-openshift_create-images>`_.
+
+Waits for Airflow DB connection
+...............................
+
+In case Postgres or MySQL DB is used, the entrypoint will wait until the airflow DB connection becomes
+available. This happens always when you use the default entrypoint.
+
+The script detects backend type depending on the URL schema and assigns default port numbers if not specified
+in the URL. Then it loops until the connection to the host/port specified can be established
+It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
+
+Supported schemes:
+
+* ``postgres://`` - default port 5432
+* ``mysql://``    - default port 3306
+* ``sqlite://``
+
+In case of SQLite backend, there is no connection to establish and waiting is skipped.
+
+Upgrading Airflow DB
+....................
+
+If you set ``_AIRFLOW_DB_UPGRADE`` variable to a non-empty value, the entrypoint will run
+the ``airflow db upgrade`` command right after verifying the connection. You can also use this
+when you are running airflow with internal SQLite database (default) to upgrade the db and create
+admin users at entrypoint, so that you can start the webserver immediately. Note - using SQLite is
+intended only for testing purpose, never use SQLite in production as it has severe limitations when it
+comes to concurrency.
+
+
+Creating admin user
+...................
+
+The entrypoint can also create webserver user automatically when you enter it. you need to set
+``_AIRFLOW_WWW_USER_CREATE`` to a non-empty value in order to do that. This is not intended for
+production, it is only useful if you would like to run a quick test with the production image.
+You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or
+``_AIRFLOW_WWW_USER_PASSWORD_CMD`` similarly like for other ``*_CMD`` variables, the content of
+the ``*_CMD`` will be evaluated as shell command and it's output will be set ass password.
+
+User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
+password for security reasons.
+
++-----------+--------------------------+----------------------------------------------------------------------+
+| Parameter | Default                  | Environment variable                                                 |
++===========+==========================+======================================================================+
+| username  | admin                    | ``_AIRFLOW_WWW_USER_USERNAME``                                       |
++-----------+--------------------------+----------------------------------------------------------------------+
+| password  |                          | ``_AIRFLOW_WWW_USER_PASSWORD_CMD`` or ``_AIRFLOW_WWW_USER_PASSWORD`` |
++-----------+--------------------------+----------------------------------------------------------------------+
+| firstname | Airflow                  | ``_AIRFLOW_WWW_USER_FIRSTNAME``                                      |
++-----------+--------------------------+----------------------------------------------------------------------+
+| lastname  | Admin                    | ``_AIRFLOW_WWW_USER_LASTNAME``                                       |
++-----------+--------------------------+----------------------------------------------------------------------+
+| email     | airflowadmin@example.com | ``_AIRFLOW_WWW_USER_EMAIL``                                          |
++-----------+--------------------------+----------------------------------------------------------------------+
+| role      | Admin                    | ``_AIRFLOW_WWW_USER_ROLE``                                           |
++-----------+--------------------------+----------------------------------------------------------------------+
+
+In case the password is specified, the user will be attempted to be created, but the entrypoint will
+not fail if the attempt fails (this accounts for the case that the user is already created).
+
+You can, for example start the webserver in the production image with initializing the internal SQLite
+database and creating an ``admin/admin`` Admin user with the following command:
+
+.. code-block:: bash
+
+  docker run -it -p 8080:8080 \
+    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_WWW_USER_CREATE=true" \
+    --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
+      apache/airflow:master-python3.8 webserver
+
+
+.. code-block:: bash
+
+  docker run -it -p 8080:8080 \
+    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_WWW_USER_CREATE=true" \
+    --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
+      apache/airflow:master-python3.8 webserver
+
+The commands above perform initialization of the SQLite database, create admin user with admin password
+and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
+
+
+Waits for celery broker connection
+..................................
+
+In case Postgres or MySQL DB is used, and one of the ``scheduler``, ``celery``, ``worker``, or ``flower``
+commands are used the entrypoint will wait until the celery broker DB connection is available.
+
+The script detects backend type depending on the URL schema and assigns default port numbers if not specified
+in the URL. Then it loops until connection to the host/port specified can be established
+It tries ``CONNECTION_CHECK_MAX_COUNT`` times and sleeps ``CONNECTION_CHECK_SLEEP_TIME`` between checks
+
+Supported schemes:
+
+* ``amqp(s)://``  (rabbitmq) - default port 5672
+* ``redis://``               - default port 6379
+* ``postgres://``            - default port 5432
+* ``mysql://``               - default port 3306
+* ``sqlite://``
+
+In case of SQLite backend, there is no connection to establish and waiting is skipped.
+
+
+Recipes
+-------
+
+Users sometimes share interesting ways of using the Docker images. We encourage users to contribute these
+recipes to the documentation in case they prove useful to other members of the community by
+submitting a pull request. The sections below capture this knowledge.
+
+Google Cloud SDK installation
+.............................
+
+Some operators, such as :class:`airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
+:class:`airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`, require
+the installation of `Google Cloud SDK <https://cloud.google.com/sdk>`__ (includes ``gcloud``).
+You can also run these commands with BashOperator.
+
+Create a new Dockerfile like the one shown below.
+
+.. exampleinclude:: /docker-images-recipes/gcloud.Dockerfile
+    :language: dockerfile
+
+Then build a new image.
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.0" \
+    -t my-airflow-image
+
+
+Apache Hadoop Stack installation
+................................
+
+Airflow is often used to run tasks on Hadoop cluster. It required Java Runtime Environment (JRE) to run.
+Below are the steps to take tools that are frequently used in Hadoop-world:
+
+- Java Runtime Environment (JRE)
+- Apache Hadoop
+- Apache Hive
+- `Cloud Storage connector for Apache Hadoop <https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage>`__
+
+
+Create a new Dockerfile like the one shown below.
+
+.. exampleinclude:: /docker-images-recipes/hadoop.Dockerfile
+    :language: dockerfile
+
+Then build a new image.
+
+.. code-block:: bash
+
+  docker build . \
+    --build-arg BASE_AIRFLOW_IMAGE="apache/airflow:2.0.0" \
+    -t my-airflow-image
 
 More details about the images
 -----------------------------
@@ -781,37 +983,64 @@ This concept is implemented in the development version of the Helm Chart that is
 Secured Server and Service Access on Google Cloud
 =================================================
 
-This section describes techniques and solutions for securely accessing servers and services when your Airflow environment is deployed on Google Cloud, or you connect to Google services, or you are connecting to the Google API.
+This section describes techniques and solutions for securely accessing servers and services when your Airflow
+environment is deployed on Google Cloud, or you connect to Google services, or you are connecting
+to the Google API.
 
 IAM and Service Accounts
 ------------------------
 
-You should do not rely on internal network segmentation or firewalling as our primary security mechanisms. To protect your organization's data, every request you make should contain sender identity. In the case of Google Cloud, the identity is provided by `the IAM and Service account <https://cloud.google.com/iam/docs/service-accounts>`__. Each Compute Engine instance has an associated service account identity. It provides cryptographic credentials that your workload can use to prove its identity when making calls to Google APIs or third-party services. Each instance has access only to short-lived credentials. If you use Google-managed service account keys, then the private key is always held in escrow and is never directly accessible.
+You should not rely on internal network segmentation or firewalling as our primary security mechanisms.
+To protect your organization's data, every request you make should contain sender identity. In the case of
+Google Cloud, the identity is provided by
+`the IAM and Service account <https://cloud.google.com/iam/docs/service-accounts>`__. Each Compute Engine
+instance has an associated service account identity. It provides cryptographic credentials that your workload
+can use to prove its identity when making calls to Google APIs or third-party services. Each instance has
+access only to short-lived credentials. If you use Google-managed service account keys, then the private
+key is always held in escrow and is never directly accessible.
 
-If you are using Kubernetes Engine, you can use `Workload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity>`__ to assign an identity to individual pods.
+If you are using Kubernetes Engine, you can use
+`Workload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity>`__ to assign
+an identity to individual pods.
 
 For more information about service accounts in the Airflow, see :ref:`howto/connection:gcp`
 
 Impersonate Service Accounts
 ----------------------------
 
-If you need access to other service accounts, you can :ref:`impersonate other service accounts <howto/connection:gcp:impersonation>` to exchange the token with the default identity to another service account. Thus, the account keys are still managed by Google and cannot be read by your workload.
+If you need access to other service accounts, you can
+:ref:`impersonate other service accounts <howto/connection:gcp:impersonation>` to exchange the token with
+the default identity to another service account. Thus, the account keys are still managed by Google
+and cannot be read by your workload.
 
-It is not recommended to generate service account keys and store them in the metadata database or the secrets backend. Even with the use of the backend secret, the service account key is available for your workload.
+It is not recommended to generate service account keys and store them in the metadata database or the
+secrets backend. Even with the use of the backend secret, the service account key is available for
+your workload.
 
 Access to Compute Engine Instance
 ---------------------------------
 
-If you want to establish an SSH connection to the Compute Engine instance, you must have the network address of this instance and credentials to access it. To simplify this task, you can use :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` instead of :class:`~airflow.providers.ssh.hooks.ssh.SSHHook`
+If you want to establish an SSH connection to the Compute Engine instance, you must have the network address
+of this instance and credentials to access it. To simplify this task, you can use
+:class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook`
+instead of :class:`~airflow.providers.ssh.hooks.ssh.SSHHook`
 
-The :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` support authorization with Google OS Login service. It is an extremely robust way to manage Linux access properly as it stores short-lived ssh keys in the metadata service, offers PAM modules for access and sudo privilege checking and offers nsswitch user lookup into the metadata service as well.
+The :class:`~airflow.providers.google.cloud.hooks.compute.ComputeEngineHook` support authorization with
+Google OS Login service. It is an extremely robust way to manage Linux access properly as it stores
+short-lived ssh keys in the metadata service, offers PAM modules for access and sudo privilege checking
+and offers the ``nsswitch`` user lookup into the metadata service as well.
 
-It also solves the discovery problem that arises as your infrastructure grows. You can use the instance name instead of the network address.
+It also solves the discovery problem that arises as your infrastructure grows. You can use the
+instance name instead of the network address.
 
 Access to Amazon Web Service
 ----------------------------
 
-Thanks to `Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html>`__, you can exchange the Google Cloud Platform identity to the Amazon Web Service identity, which effectively means access to Amazon Web Service platform. For more information, see: :ref:`howto/connection:aws:gcp-federation`
+Thanks to the
+`Web Identity Federation <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc.html>`__,
+you can exchange the Google Cloud Platform identity to the Amazon Web Service identity,
+which effectively means access to Amazon Web Service platform.
+For more information, see: :ref:`howto/connection:aws:gcp-federation`
 
 .. spelling::
 
